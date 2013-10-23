@@ -246,6 +246,20 @@ var processors = jsbin.processors = (function () {
       }
     }),
 
+    sass: createProcessor({
+      id: 'sass',
+      target: 'css',
+      extensions: ['sass'],
+      url: jsbin.static + '/js/vendor/sassc-22102013.js',
+      init: function (ready) {
+        $.getScript(jsbin.static + '/js/vendor/codemirror3/mode/sass/sass.js', ready);
+      },
+      handler: function(source) {
+        var css = sass.parse(source);
+        return css;
+      }
+    }),
+
     less: createProcessor({
       id: 'less',
       target: 'css',

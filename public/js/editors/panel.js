@@ -9,6 +9,7 @@ var editorModes = {
   markdown: 'markdown',
   coffeescript: 'coffeescript',
   less: 'less',
+  sass: 'sass',
   processing: 'text/x-csrc'
 };
 
