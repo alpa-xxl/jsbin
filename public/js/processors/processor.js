@@ -250,7 +250,7 @@ var processors = jsbin.processors = (function () {
       id: 'sass',
       target: 'css',
       extensions: ['sass'],
-      url: jsbin.static + '/js/vendor/sassc-22102013.js',
+      url: jsbin.static + '/js/vendor/sass.js',
       init: function (ready) {
         $.getScript(jsbin.static + '/js/vendor/codemirror3/mode/sass/sass.js', ready);
       },
