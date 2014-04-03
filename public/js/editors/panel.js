@@ -1,3 +1,5 @@
+/*globals $, CodeMirror, jsbin, jshintEnabled */
+
 var $document = $(document),
     $source = $('#source');
 
@@ -8,6 +10,7 @@ var editorModes = {
   typescript: 'javascript',
   markdown: 'markdown',
   coffeescript: 'coffeescript',
+  jsx: 'jsx',
   less: 'less',
   sass: 'sass',
   processing: 'text/x-csrc'
@@ -25,56 +28,19 @@ if (!CodeMirror.commands) {
   CodeMirror.commands = {};
 }
 
-CodeMirror.commands.autocomplete = function(cm) {
-  return CodeMirror.simpleHint(cm, CodeMirror.javascriptHint);
-};
-
-var foldFunc = {
-  css: CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder),
-  javascript: CodeMirror.newFoldFunction(CodeMirror.braceRangeFinder),
-  html: CodeMirror.newFoldFunction(CodeMirror.tagRangeFinder)
-};
-
-// this is a bit of a fudge to get multiline commenting working
-// for JavaScript. It's a fudge because emmet doesn't support
-// JavaScript as a language at all, so we inherit code our own comment style.
-var vocab = emmet.require('resources').getVocabulary('system');
-vocab.javascript = 'javascript';
-emmet.require('resources').setVocabulary(vocab, 'system');
-
-// totally over the top - but cleanest way to add comments to JavaScript
-var emmetToggleComment = emmet.require('actions').get('toggle_comment');
-emmet.require('actions').add('toggle_comment', function(editor) {
-  var info = emmet.require('editorUtils').outputInfo(editor);
-  if (info.syntax == 'javascript') {
-    // in case our editor is good enough and can recognize syntax from
-    // current token, we have to make sure that cursor is not inside
-    // 'style' attribute of html element
-    var editorUtils = emmet.require('editorUtils');
-    var selection = editor.getSelection();
-    var range = editor.getCurrentLineRange();
-    var line = editor.getCurrentLine();
-    var caretPos = editor.getCaretPos();
-    var tag = emmet.require('htmlMatcher').tag(info.content, caretPos);
-    if ((selection.length) || (tag && tag.open.range.inside(caretPos))) {
-      return emmetToggleComment.fn(editor);
-    } else {
-      if (line.trim().indexOf('//') == 0) {
-        editor.setCaretPos(caretPos);
-        editor.replaceContent(editorUtils.unindent(editor, line.replace(/(\s*?)\/\/\s?/, '$1')), range.start, range.end, false);
-        editor.setCaretPos(caretPos - 3);
-      } else {
-        editor.setCaretPos(caretPos);
-        editor.replaceContent(editorUtils.unindent(editor, '// ' + line), range.start, range.end, false);
-        editor.setCaretPos(caretPos + 3);
-      }
-    }
-  } else {
-    return emmetToggleComment.fn(editor);
+// Save a reference to this autocomplete function to use it when Tern scripts
+// are loaded but not used, since they will automatically overwrite the
+// CodeMirror autocomplete function with CodeMirror.showHint
+var simpleJsHint = function(cm) {
+  if (CodeMirror.snippets(cm) === CodeMirror.Pass) {
+    return CodeMirror.simpleHint(cm, CodeMirror.hint.javascript);
   }
-});
+};
+CodeMirror.commands.autocomplete = simpleJsHint;
 
-
+CodeMirror.commands.snippets = function (cm) {
+  return CodeMirror.snippets(cm);
+};
 
 var Panel = function (name, settings) {
   var panel = this,
@@ -82,15 +48,16 @@ var Panel = function (name, settings) {
       $panel = null,
       splitterSettings = {},
       cmSettings = {},
-      panelLanguage = name;
+      panelLanguage = name,
+      $panelwrapper = $('<div class="stretch panelwrapper"></div>');
 
   panel.settings = settings = settings || {};
   panel.id = panel.name = name;
   $panel = $('.panel.' + name);
   $panel.data('name', name);
   panel.$el = $panel.detach();
-  panel.$el.appendTo($source);
-  panel.$el.wrapAll('<div class="stretch panelwrapper">');
+  panel.$el.appendTo($panelwrapper);
+  $panelwrapper.appendTo($source);
   panel.$panel = panel.$el;
   panel.$el = panel.$el.parent().hide();
   panel.el = document.getElementById(name);
@@ -120,16 +87,6 @@ var Panel = function (name, settings) {
     });
   }
 
-  if (jsbin.state.processors && jsbin.state.processors[name]) {
-    panelLanguage = jsbin.state.processors[name];
-    jsbin.processors.set(panel, jsbin.state.processors[name]);
-  } else if (settings.processor) { // FIXME is this even used?
-    panelLanguage = settings.processors[settings.processor];
-    jsbin.processors.set(panel, settings.processor);
-  } else {
-    panel.processor = function (str) { return str; };
-  }
-
   if (settings.editor) {
     cmSettings = {
       parserfile: [],
@@ -138,7 +95,6 @@ var Panel = function (name, settings) {
       mode: editorModes[panelLanguage],
       lineWrapping: true,
       styleActiveLine: true,
-      highlightSelectionMatches: true,
       theme: jsbin.settings.theme || 'jsbin'
     };
 
@@ -146,39 +102,41 @@ var Panel = function (name, settings) {
 
     cmSettings.extraKeys = {};
 
-    cmSettings.extraKeys['Ctrl-Q'] = function (cm) {
-      foldFunc[name](cm, cm.getCursor().line);
-    };
-
     // only the js panel for now, I'd like this to work in
     // the HTML panel too, but only when you were in JS scope
     if (name === 'javascript') {
       cmSettings.extraKeys.Tab = 'autocomplete';
+    } else {
+      cmSettings.extraKeys.Tab = 'snippets';
     }
 
-    // cmSettings.extraKeys.Tab = 'snippets';
-
-    // Add Zen Coding to html pane
-    // if (name === 'html') {
-      $.extend(cmSettings, {
-        syntax: name,   /* define Zen Coding syntax */
-        profile: name   /* define Zen Coding output profile */
-      });
-    // }
+    // some emmet "stuff" - TODO decide whether this is needed still...
+    $.extend(cmSettings, {
+      syntax: name,   /* define Zen Coding syntax */
+      profile: name   /* define Zen Coding output profile */
+    });
 
     panel.editor = CodeMirror.fromTextArea(panel.el, cmSettings);
 
     // Bind events using CM3 syntax
-    panel.editor.on('change', function (event) {
-      $document.trigger('codeChange', [{ panelId: panel.id, revert: true }]);
+    panel.editor.on('change', function codeChange(cm, changeObj) {
+      $document.trigger('codeChange', [{ panelId: panel.id, revert: true, origin: changeObj.origin }]);
       return true;
     });
-
-    panel.editor.on('gutterClick', foldFunc[name]);
 
     panel.editor.on('focus', function () {
       panel.focus();
     });
+
+    // Restore keymaps taken by emmet but that we need for other functionalities
+    if (name === 'javascript') {
+      var cmd = $.browser.platform === 'mac' ? 'Cmd' : 'Ctrl';
+      var map = {};
+      map[cmd + '-D'] = 'deleteLine';
+      map[cmd + '-/'] = function(cm) { CodeMirror.commands.toggleComment(cm); };
+      map.name = 'noEmmet';
+      panel.editor.addKeyMap(map);
+    }
 
     panel._setupEditor(panel.editor, name);
   }
@@ -189,6 +147,16 @@ var Panel = function (name, settings) {
   } else {
     // create a fake splitter to let the rest of the code work
     panel.splitter = $();
+  }
+
+  if (jsbin.state.processors && jsbin.state.processors[name]) {
+    panelLanguage = jsbin.state.processors[name];
+    jsbin.processors.set(panel, jsbin.state.processors[name]);
+  } else if (settings.processor) { // FIXME is this even used?
+    panelLanguage = settings.processors[settings.processor];
+    jsbin.processors.set(panel, settings.processor);
+  } else {
+    panel.processor = function (str) { return str; };
   }
 
   if (settings.beforeRender) {
@@ -371,7 +339,9 @@ Panel.prototype = {
   },
   setCode: function (content) {
     if (this.editor) {
-      if (content === undefined) content = '';
+      if (content === undefined) {
+        content = '';
+      }
       this.controlButton.toggleClass('hasContent', !!content.trim().length);
       this.codeSet = true;
       this.editor.setCode(content.replace(badChars, ''));
@@ -544,7 +514,7 @@ function populateEditor(editor, panel) {
 
     // if we clone the bin, there will be a checksum on the state object
     // which means we happily have write access to the bin
-    if (sessionURL !== template.url && !jsbin.state.checksum) {
+    if (sessionURL !== jsbin.getURL() && !jsbin.state.checksum) {
       // nuke the live saving checksum
       sessionStorage.removeItem('checksum');
       saveChecksum = false;
@@ -552,7 +522,7 @@ function populateEditor(editor, panel) {
 
     if (template && cached == template[panel]) { // restored from original saved
       editor.setCode(cached);
-    } else if (cached && sessionURL == template.url) { // try to restore the session first - only if it matches this url
+    } else if (cached && sessionURL == jsbin.getURL()) { // try to restore the session first - only if it matches this url
       editor.setCode(cached);
       // tell the document that it's currently being edited, but check that it doesn't match the saved template
       // because sessionStorage gets set on a reload

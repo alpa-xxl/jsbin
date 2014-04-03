@@ -22,6 +22,7 @@ var sandbox = (function () {
     var iframe = document.createElement('iframe');
     iframe.setAttribute('sandbox', 'allow-forms allow-pointer-lock allow-popups allow-same-origin allow-scripts');
     iframe.setAttribute('frameBorder', '0');
+    iframe.setAttribute('name', 'JS Bin Output ');
     iframe.id = sandbox.guid++;
     return iframe;
   };
@@ -39,10 +40,11 @@ var sandbox = (function () {
     prependChild(sandbox.target, iframe);
     // setTimeout allows the iframe to be rendered before other code runs,
     // allowing us access to the calculated properties like innerWidth.
-    setTimeout(done || '', 0);
-    // Wait until the new iframe has loaded then remove *all* the iframes,
-    // baring the active one
-    addEvent(iframe, 'load', function () {
+    setTimeout(function () {
+      // call the code that renders the iframe source
+      if (done) done();
+
+      // remove *all* the iframes, baring the active one
       var iframes = sandbox.target.getElementsByTagName('iframe'),
           length = iframes.length,
           i = 0,
@@ -55,7 +57,7 @@ var sandbox = (function () {
           length--;
         }
       }
-    });
+    }, 0);
   };
 
   /**
@@ -122,6 +124,16 @@ var sandbox = (function () {
    */
   sandbox.eval = function (cmd) {
     if (!sandbox.active) throw new Error("sandbox.eval: has no active iframe.");
+
+    var re = /(^.|\b)console\.(\S+)/g;
+
+    if (re.test(cmd)) {
+      var replaceWith = 'window.runnerWindow.proxyConsole.';
+      cmd = cmd.replace(re, function (all, str, arg) {
+        return replaceWith + arg;
+      });
+    }
+
     var childWindow = sandbox.active.contentWindow;
     var output = null,
         type = 'log';

@@ -1,9 +1,10 @@
-var $startingpoint = $('#startingpoint').click(function (event) {
+var $startingpoint = $('a.startingpoint').click(function (event) {
   event.preventDefault();
   if (localStorage) {
     analytics.saveTemplate();
     localStorage.setItem('saved-javascript', editors.javascript.getCode());
     localStorage.setItem('saved-html', editors.html.getCode());
+    localStorage.setItem('saved-css', editors.css.getCode());
 
     $document.trigger('tip', {
       type: 'notification',
@@ -30,19 +31,26 @@ $('a.disabled').on('click mousedown mouseup', function (event) {
 
 $('#loginbtn').click(function () {
   analytics.login();
+  $(this).toggleClass('open');
   // $('#login').show();
   // loginVisible = true;
-  $username.focus();
   // return false;
 });
 
-$('.logout').click(function (event) {
+$('a.logout').click(function (event) {
   event.preventDefault();
 
   // We submit a form here because I can't work out how to style the button
   // element in the form to look the same as the anchor. Ideally we would
   // remove that and just let the form submit itself...
   $(this.hash).submit();
+  // Clear session storage so private bins wont be cached.
+  for (i = 0; i < sessionStorage.length; i++) {
+    key = sessionStorage.key(i);
+    if (key.indexOf('jsbin.content.') === 0) {
+      sessionStorage.removeItem(key);
+    }
+  }
 });
 
 $('.homebtn').click(function (event, data) {
@@ -239,7 +247,8 @@ $('.code.panel > .label > span.name').dblclick(function () {
   });
 });
 
-$('#createnew').click(function () {
+$('#createnew').click(function (event) {
+  event.preventDefault();
   var i, key;
   analytics.createNew();
   // FIXME this is out and out [cr]lazy....
@@ -250,6 +259,9 @@ $('#createnew').click(function () {
       sessionStorage.removeItem(key);
     }
   }
+
+  // clear out the write checksum too
+  sessionStorage.removeItem('checksum');
 
   jsbin.panels.saveOnExit = true;
 
@@ -262,7 +274,39 @@ $('#createnew').click(function () {
       jsbin.panels.panels.html.show();
       jsbin.panels.panels.live.show();
     }
+    window.location = jsbin.root;
   }, 0);
+});
+
+var $privateButton = $('#control a.visibilityToggle#private');
+var $publicButton = $('#control a.visibilityToggle#public');
+
+var $visibilityButtons = $('#control a.visibilityToggle').click(function(event) {
+  event.preventDefault();
+
+  var visibility = $(this).data('vis');
+
+  $.ajax({
+    url: jsbin.getURL() + '/' + visibility,
+    type: 'post',
+    success: function (data) {
+
+      $document.trigger('tip', {
+        type: 'notification',
+        content: 'This bin is now ' + visibility,
+        autohide: 6000
+      });
+
+      $visibilityButtons.css('display', 'none');
+
+      if (visibility === 'public') {
+        $privateButton.css('display', 'block');
+      } else {
+        $publicButton.css('display', 'block');
+      }
+
+    }
+  });
 });
 
 $('form.login').closest('.menu').bind('close', function () {
@@ -305,7 +349,8 @@ if (window.location.hash) {
 var ismac = navigator.userAgent.indexOf(' Mac ') !== -1,
     mackeys = {
       'ctrl': '⌘',
-      'shift': '⇧'
+      'shift': '⇧',
+      'del': '⌫'
     };
 
 $('#control').find('a[data-shortcut]').each(function () {
@@ -314,7 +359,7 @@ $('#control').find('a[data-shortcut]').each(function () {
 
   var key = data.shortcut;
   if (ismac) {
-    key = key.replace(/ctrl/i, mackeys.ctrl).replace(/shift/, mackeys.shift).replace(/\+/g, '').toUpperCase();
+    key = key.replace(/ctrl/i, mackeys.ctrl).replace(/shift/, mackeys.shift).replace(/del/, mackeys.del).replace(/\+/g, '').toUpperCase();
   }
 
   $this.append('<span class="keyshortcut">' + key + '</span>');
@@ -374,7 +419,31 @@ $('#addmeta').click(function () {
   return false;
 });
 
-// add navigation to insert meta data
+$('a.deletebin').on('click', function (e) {
+  e.preventDefault();
+  analytics.delete();
+  $.ajax({
+    type: 'post',
+    url: jsbin.getURL() + '/delete',
+    data: { checksum: jsbin.state.checksum },
+    success: function () {
+      jsbin.state.deleted = true;
+      $document.trigger('tip', {
+        type: 'error',
+        content: 'This bin is now deleted. You can continue to edit, but once you leave the bin can\'t be retrieved'
+      });
+    },
+    error: function (xhr) {
+      if (xhr.status === 403) {
+        $document.trigger('tip', {
+          content: 'You don\'t own this bin, so you can\'t delete it.',
+          autohide: 5000,
+        });
+      }
+    }
+  });
+});
+
 
 
 }());

@@ -15,7 +15,7 @@ Find out more about JS Bin's features via the [YouTube JS Bin playlist](http://j
 
 ## Who built this?
 
-JS Bin was built by [Remy Sharp](http://remysharp.com) and is completely open source and available [http://github.com/remy/jsbin](http://github.com/remy/jsbin). You can also follow [@rem](http://twitter.com/rem) on Twitter where he'll tweet about JavaScript, HTML 5 and other such gems.
+JS Bin was built by [Remy Sharp](http://remysharp.com) and is completely open source and available at [http://github.com/jsbin/jsbin](http://github.com/jsbin/jsbin). You can also follow [@rem](http://twitter.com/rem) on Twitter where he'll tweet about JavaScript, HTML 5 and other such gems.
 
 If you would like to work with Remy and his company, [Left Logic](http://leftlogic.com) on a front end development project, [please get in touch](http://leftlogic.com/contact?message=Found%20through%20jsbin.com).
 
@@ -37,7 +37,7 @@ The original idea spawned from a conversation with another developer in trying t
 
 JS Bin has been designed to work both online at [jsbin.com](http://jsbin.com) but also in your own locally hosted environment - or even live in your own site (if you do host it as a utility, do let us know by pinging [@js_bin](http://twitter.com/js_bin) on twitter).
 
-Historically JS Bin was built on PHP, but has since moved to Node. The PHP flavour is no longer supported, however everything else [released in v3.0.0](https://github.com/remy/jsbin/tags) of JS Bin is available in both, but all releases after are only supported in the Node environment. Your PHP mileage may vary!
+Historically JS Bin was built on PHP, but has since moved to Node. The PHP flavour is no longer supported, however everything else [released in v3.0.0](https://github.com/jsbin/jsbin/tags) of JS Bin is available in both, but all releases after are only supported in the Node environment. Your PHP mileage may vary!
 
 For detailed instructions on how to build JS Bin please see the [running your own JS Bin document](/docs/running-your-own-jsbin.md).
 
@@ -48,13 +48,13 @@ If you install [Node.js](http://nodejs.org) installation is easy:
 
 Optionally point JS Bin to your config:
 
-    $ JSBIN_CONFIG=~/conifg.local.json jsbin
+    $ JSBIN_CONFIG=~/config.local.json jsbin
 
 Then open your browser to [http://localhost:3000](http://localhost:3000) and you have a fully working version of JS Bin running locally.
 
 ## API
 
-A simple REST based API exists for anonymous users if it is enabled in your config.*.json, or can be restricted to registered users with a key specified in `ownership.api_key`
+A simple REST based API exists for anonymous users if it is enabled in your config.\*.json, or can be restricted to registered users with a key specified in `ownership.api_key`
 
 Authentication is required for all API requests unless one of the following api configuration options are set:
 
